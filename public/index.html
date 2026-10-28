@@ -47,7 +47,7 @@
 </div><p class="help">闷牌只能选择 5/10/15，且不能低于上一个有效闷注；看牌下注为闷注对应的 2 倍。点击“看自己的牌”才会显示自己的底牌，且看牌不消耗行动。第一位看牌的玩家不能发起普通比牌；之后看牌的玩家可与之前已上牌且仍在局内的玩家比牌，费用为当前有效闷注的两倍。只剩两名玩家时，未看牌玩家可用当前有效闷注额发起闷牌比牌，输家弃牌。若按钮暂不可用，请等待轮到你。</p></section>
 <div id="status" class="log" aria-live="polite">请创建房间、加入房间，或开始单机试玩。</div>
 </section>
-<p class="help">规则约定：顺金 ＞ 特殊牌 235 ＞ 豹子 ＞ 金花 ＞ 顺子 ＞ 对子 ＞ 单张；AAA 为最大普通豹子，235 可击败所有豹子。每局由庄家开始按座位顺序逆时针轮流操作，上一局赢家成为下一局庄家。闷牌拿到豹子或顺金并获胜时，获得每位其他玩家额外 30 分；闷牌拿到 235 且令所有其他玩家弃牌时，也获得每位其他玩家额外 30 分。当前原型把 235 作为特殊牌型处理。</p>
+<p class="help">规则约定：豹子 ＞ 顺金 ＞ 金花 ＞ 顺子 ＞ 对子 ＞ 单张；AAA 为最大豹子。特殊牌 235 可击败所有豹子（包括 AAA），但输给其他普通牌型；235 不按普通顺金处理。每局由庄家开始按座位顺序逆时针轮流操作，上一局赢家成为下一局庄家。闷牌拿到豹子或顺金并获胜时，获得每位其他玩家额外 30 分；闷牌拿到 235 且令所有其他玩家弃牌时，也获得每位其他玩家额外 30 分。当前原型把 235 作为特殊牌型处理。</p>
 </main>
 <script>
 (()=>{'use strict';
@@ -60,15 +60,15 @@ function evaluate(h){
  const g=Object.entries(counts).map(([r,n])=>({r:+r,n})).sort((a,b)=>b.n-a.n||b.r-a.r);
  const is235=rs.join(',')==='5,3,2',unique=[...new Set(rs)],straight=unique.length===3&&(rs[0]-rs[2]===2||(rs[0]===14&&rs[1]===3&&rs[2]===2));
  const seq=rs[0]===14&&rs[1]===3&&rs[2]===2?[3,2,1]:rs;
- if(straight&&flush)return {cat:8,vec:seq,label:'顺金'};
  if(is235)return {cat:7,vec:[5,3,2],label:'特殊牌 235'};
- if(g[0].n===3)return {cat:6,vec:[g[0].r],label:'豹子'};
- if(flush)return {cat:4,vec:rs,label:'金花'};
- if(straight)return {cat:3,vec:seq,label:'顺子'};
- if(g[0].n===2)return {cat:2,vec:[g[0].r,...rs.filter(r=>r!==g[0].r)],label:'对子'};
- return {cat:1,vec:rs,label:'单张'};
+ if(g[0].n===3)return {cat:8,vec:[g[0].r],label:'豹子'};
+ if(straight&&flush)return {cat:7,vec:seq,label:'顺金'};
+ if(flush)return {cat:5,vec:rs,label:'金花'};
+ if(straight)return {cat:4,vec:seq,label:'顺子'};
+ if(g[0].n===2)return {cat:3,vec:[g[0].r,...rs.filter(r=>r!==g[0].r)],label:'对子'};
+ return {cat:2,vec:rs,label:'单张'};
 }
-function cmp(a,b){let x=evaluate(a),y=evaluate(b);if(x.cat!==y.cat)return x.cat-y.cat;for(let i=0;i<Math.max(x.vec.length,y.vec.length);i++)if((x.vec[i]||0)!==(y.vec[i]||0))return (x.vec[i]||0)-(y.vec[i]||0);return 0}
+function cmp(a,b){let x=evaluate(a),y=evaluate(b);if(x.label==='特殊牌 235'&&y.label==='特殊牌 235')return 0;if(x.label==='特殊牌 235')return y.label==='豹子'?1:-1;if(y.label==='特殊牌 235')return x.label==='豹子'?-1:1;if(x.cat!==y.cat)return x.cat-y.cat;for(let i=0;i<Math.max(x.vec.length,y.vec.length);i++)if((x.vec[i]||0)!==(y.vec[i]||0))return (x.vec[i]||0)-(y.vec[i]||0);return 0}
 function card(c,hide=false){if(hide)return '<div class="card back">?</div>';return `<div class="card ${(c.s==='♥'||c.s==='♦')?'red':''}"><span>${rn(c.r)}</span><span class="suit">${c.s}</span><span style="font-size:10px">${rn(c.r)}${c.s}</span></div>`}
 function log(t){$('status').textContent=t}
 function showGame(){ $('lobby').classList.add('hidden');$('game').classList.remove('hidden');}
