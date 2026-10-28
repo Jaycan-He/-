@@ -64,7 +64,7 @@ function publicState(room, viewer) {
     eligibleTargets: g && g.phase === 'playing' ? (g.players[g.turn]?.id === viewer && g.firstSeenId !== viewer ? g.players.filter(q => q.id !== viewer && !q.folded && !q.disconnected && q.wagered).map(q => ({id:q.id,name:q.name})) : []) : [],
     dealer: room.dealerId || null, dealerName: room.players.find(p => p.id === room.dealerId)?.name || null,
     reveal: !!(g && g.reveal), turnDeadline: g && g.phase === 'playing' ? g.turnDeadline : null, players: room.players.filter(p => !p.disconnected).map(p => ({
-      id: p.id, name: p.name, chips: p.chips, folded: !!p.folded, seen: !!p.seen,
+      id: p.id, name: p.name, chips: p.chips, folded: !!p.folded, seen: !!p.seen, lastAction: p.lastAction || '',
       hand: g && g.phase === 'finished' ? p.hand : (p.id === viewer && g && p.seen ? p.hand : undefined)
     }))
   };
@@ -91,7 +91,7 @@ function armTurnTimer(room) {
   g.turnDeadline = Date.now() + TURN_MS;
   g.turnTimer = setTimeout(() => {
     if (room.game !== g || g.phase !== 'playing' || g.players[g.turn] !== p || p.folded || p.disconnected) return;
-    p.folded = true;
+    p.folded = true; p.lastAction = '超时弃牌';
     transferForcedBlind(room, p);
     const alive = activePlayers(room);
     if (alive.length <= 1) finish(room, alive[0] || null, `${p.name} 超时未操作，自动弃牌。${alive[0] ? alive[0].name + ' 赢得本局。' : '本局无人获胜。'}`);
@@ -145,7 +145,7 @@ function start(room) {
   room.dealerId = players[dealerIndex].id;
   const g = room.game = { phase: 'playing', pot: 0, lastBlind: 5, turn: (dealerIndex + 1) % players.length, reveal: false, players, round: (room.game?.round || 0) + 1, firstSeenId: null, contributions: Object.create(null), forcedBlindId: players[(dealerIndex + 1) % players.length].id };
   for (const p of players) {
-    p.hand = d.splice(0, 3); p.folded = false; p.seen = false; p.blind = false; p.everBlinded = false; p.wagered = false;
+    p.hand = d.splice(0, 3); p.folded = false; p.seen = false; p.blind = false; p.everBlinded = false; p.wagered = false; p.lastAction = '已支付底注 5';
     const ante = 5; p.chips -= ante; g.pot += ante; g.contributions[p.id] = ante;
   }
   armTurnTimer(room); broadcast(room, `第 ${g.round} 局开始：${room.players[dealerIndex].name} 坐庄，从庄家下一位开始行动。每人先支付 5 分底注。`);
@@ -158,7 +158,7 @@ function action(room, p, m) {
   if (p.folded) return;
   if (m.action === 'fold') {
     if (g.forcedBlindId === p.id) return send(p, { type: 'error', message: '你是本局强制闷牌玩家，必须先闷牌，不能主动弃牌。' });
-    p.folded = true;
+    p.folded = true; p.lastAction = '弃牌';
     transferForcedBlind(room, p);
     const alive = activePlayers(room);
     if (alive.length === 1) return finish(room, alive[0], `${p.name} 弃牌，${alive[0].name} 成为最后一位未弃牌玩家，赢得底池。`);
@@ -166,7 +166,7 @@ function action(room, p, m) {
   }
   if (m.action === 'look') {
     if (p.seen) return send(p, { type: 'error', message: '你已经看过自己的牌了。' });
-    p.seen = true;
+    p.seen = true; p.lastAction = '看牌';
     if (!g.firstSeenId) g.firstSeenId = p.id;
     return broadcast(room, `${p.name} 看了自己的牌。`);
   }
@@ -177,7 +177,7 @@ function action(room, p, m) {
     const target = aliveNow.find(q => q.id !== p.id && q.wagered && q.id === m.target);
     if (!target) return send(p, { type: 'error', message: '只能闷牌挑战最后一名仍在局内且已下注的对手。' });
     if (g.forcedBlindId === p.id) return send(p, { type: 'error', message: '你必须先完成本局强制闷牌，不能直接比牌。' });
-    g.hadShowdown = true;
+    g.hadShowdown = true; p.lastAction = `闷牌比牌 ${g.lastBlind}`; target.lastAction = `被闷牌比牌`;
     const amount = g.lastBlind;
     p.chips -= amount; g.pot += amount; g.contributions[p.id] = (g.contributions[p.id] || 0) + amount;
     const won = compareHands(p.hand, target.hand) > 0;
@@ -190,7 +190,7 @@ function action(room, p, m) {
     if (g.firstSeenId === p.id) return send(p, { type: 'error', message: '第一位看牌的玩家只能下注或弃牌，不能比牌。' });
     const target = g.players.find(q => q.id === m.target && !q.folded && !q.disconnected && q.id !== p.id && q.wagered);
     if (!target) return send(p, { type: 'error', message: '只能选择之前已经上过牌且仍在局内的玩家比牌。' });
-    g.hadShowdown = true;
+    g.hadShowdown = true; p.lastAction = `普通比牌 ${g.lastBlind * 2}`; target.lastAction = '被比牌';
     const amount = g.lastBlind * 2;
     // 允许筹码不足，支付后可以变为负数。
     p.chips -= amount; g.pot += amount; g.contributions[p.id] = (g.contributions[p.id] || 0) + amount;
@@ -214,8 +214,8 @@ function action(room, p, m) {
   } else return send(p, { type: 'error', message: '未知操作。' });
   // 允许筹码不足，支付后可以变为负数。
   p.chips -= amount; g.pot += amount; g.contributions[p.id] = (g.contributions[p.id] || 0) + amount;
-  if (m.action === 'blind') { g.lastBlind = amount; p.blind = true; p.everBlinded = true; p.seen = false; if (g.forcedBlindId === p.id) g.forcedBlindId = null; }
-  else { g.lastBlind = amount / 2; p.seen = true; if (!g.firstSeenId) g.firstSeenId = p.id; }
+  if (m.action === 'blind') { p.lastAction = `闷牌下注 ${amount}`; g.lastBlind = amount; p.blind = true; p.everBlinded = true; p.seen = false; if (g.forcedBlindId === p.id) g.forcedBlindId = null; }
+  else { p.lastAction = `看牌下注 ${amount}`; g.lastBlind = amount / 2; p.seen = true; if (!g.firstSeenId) g.firstSeenId = p.id; }
   p.wagered = true;
   const name = p.name, actionText = m.action === 'blind' ? '闷牌下注' : '看牌下注';
   const alive = activePlayers(room);

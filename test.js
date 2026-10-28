@@ -42,6 +42,16 @@ test('dealer starts; actions move one seat at a time in circular order', () => {
   action(room,b,{action:'blind',amount:5});
   assert.equal(room.game.players[room.game.turn].id, 'c');
 });
+
+test('starting the next hand carries existing chip balances forward', () => {
+  const a=player('a','A',137), b=player('b','B',-12);
+  const room={players:[a,b],game:{phase:'finished',round:1},dealerId:'a'};
+  start(room);
+  assert.equal(a.chips,132); // only the new 5-point ante is deducted
+  assert.equal(b.chips,-17);
+  assert.equal(room.game.round,2);
+});
+
 test('winner becomes next dealer, even when previous dealer folded', () => {
   const a=player('a','A'), b=player('b','B'), c=player('c','C');
   const room={players:[a,b,c],game:{phase:'playing',pot:15,reveal:false,players:[a,b,c],turn:0},dealerId:'a'};
@@ -218,4 +228,28 @@ test('blind challenge is rejected unless exactly two active players remain', () 
   const room={players:[a,b,c],dealerId:'a',game:{phase:'playing',pot:15,lastBlind:5,reveal:false,players:[a,b,c],turn:0,firstSeenId:null,forcedBlindId:null,contributions:{a:5,b:5,c:5}}};
   action(room,a,{action:'blindShow',target:'b'});
   assert.equal(room.game.phase,'playing'); assert.equal(room.game.pot,15); assert.equal(b.folded,false);
+});
+
+test('ordinary showdown is allowed with 3+ active players when the challenger has seen and was not first to see', () => {
+  const a=player('a','A'), b=player('b','B'), c=player('c','C');
+  a.hand=hand([14,14,14]); b.hand=hand([13,13,13]); c.hand=hand([2,4,7]);
+  const room={players:[a,b,c],dealerId:'a',game:{phase:'playing',pot:30,lastBlind:10,reveal:false,players:[a,b,c],turn:1,firstSeenId:'a',contributions:Object.create(null)}};
+  a.seen=true; a.wagered=true; b.seen=true; b.wagered=true; c.wagered=true;
+  action(room,b,{action:'show',target:'a'});
+  assert.equal(b.folded,true);
+  assert.equal(a.folded,false);
+  assert.equal(room.game.pot,50); // challenger pays 2 x current blind
+  assert.equal(room.game.players[room.game.turn].id,'c');
+});
+
+test('ordinary showdown rejects a target who has not wagered, even with multiple active players', () => {
+  const a=player('a','A'), b=player('b','B'), c=player('c','C');
+  a.hand=hand([14,14,14]); b.hand=hand([13,13,13]); c.hand=hand([2,4,7]);
+  const room={players:[a,b,c],dealerId:'a',game:{phase:'playing',pot:30,lastBlind:10,reveal:false,players:[a,b,c],turn:1,firstSeenId:'a',contributions:Object.create(null)}};
+  a.seen=true; a.wagered=true; b.seen=true; c.wagered=false;
+  action(room,b,{action:'show',target:'c'});
+  assert.equal(b.chips,500);
+  assert.equal(room.game.pot,30);
+  assert.equal(c.folded,false);
+  assert.equal(room.game.turn,1);
 });
