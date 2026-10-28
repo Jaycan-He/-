@@ -33,14 +33,15 @@ function evaluate(hand) {
   const unique = [...new Set(rs)];
   const straight = unique.length === 3 && (rs[0] - rs[2] === 2 || (rs[0] === 14 && rs[1] === 3 && rs[2] === 2));
   const seq = rs[0] === 14 && rs[1] === 3 && rs[2] === 2 ? [3, 2, 1] : rs;
-  // 235 is a special hand regardless of suit: it beats trips, but loses to every other ordinary hand.
+  // Standard ranking: trips > straight flush > flush > straight > pair > high card.
+  // Special 235 is evaluated separately in compareHands: it beats trips only.
   if (is235) return { cat: 7, vec: [5, 3, 2], label: '特殊牌 235' };
-  if (straight && flush) return { cat: 8, vec: seq, label: '顺金' };
-  if (groups[0].n === 3) return { cat: 6, vec: [groups[0].r], label: '豹子' };
-  if (flush) return { cat: 4, vec: rs, label: '金花' };
-  if (straight) return { cat: 3, vec: seq, label: '顺子' };
-  if (groups[0].n === 2) return { cat: 2, vec: [groups[0].r, ...rs.filter(r => r !== groups[0].r)], label: '对子' };
-  return { cat: 1, vec: rs, label: '单张' };
+  if (groups[0].n === 3) return { cat: 8, vec: [groups[0].r], label: '豹子' };
+  if (straight && flush) return { cat: 7, vec: seq, label: '顺金' };
+  if (flush) return { cat: 5, vec: rs, label: '金花' };
+  if (straight) return { cat: 4, vec: seq, label: '顺子' };
+  if (groups[0].n === 2) return { cat: 3, vec: [groups[0].r, ...rs.filter(r => r !== groups[0].r)], label: '对子' };
+  return { cat: 2, vec: rs, label: '单张' };
 }
 function compareHands(a, b) {
   const x = evaluate(a), y = evaluate(b);

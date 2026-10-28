@@ -22,6 +22,10 @@ test('235 beats every trips including AAA, but loses to all ordinary hands', () 
   assert.equal(compareHands(special, hand([2,3,5], ['♠','♠','♠'])), 0); // both are the special 235 hand
   assert.ok(compareHands(special, hand([2,4,7])) < 0); // loses to ordinary high card
 });
+test('trips rank above straight flush, as agreed', () => {
+  assert.ok(compareHands(hand([14,14,14]), hand([9,10,11], ['♠','♠','♠'])) > 0);
+  assert.ok(compareHands(hand([2,2,2]), hand([3,4,5], ['♥','♥','♥'])) > 0);
+});
 test('AAA is the strongest ordinary trips', () => {
   assert.ok(compareHands(hand([14,14,14]), hand([13,13,13])) > 0);
   assert.ok(compareHands(hand([13,13,13]), hand([12,12,12])) > 0);
