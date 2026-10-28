@@ -49,6 +49,7 @@ test('winner becomes next dealer, even when previous dealer folded', () => {
 test('public state hides other players cards until hand finishes', () => {
   const a=player('a','A'), b=player('b','B'); a.hand=hand([2,3,4]); b.hand=hand([8,9,10]);
   const room={players:[a,b],dealerId:'a',game:{phase:'playing',pot:10,lastBlind:5,turn:0,reveal:false,players:[a,b]}};
+  a.seen=true;
   const state=publicState(room,'a');
   assert.ok(state.players.find(p=>p.id==='a').hand);
   assert.equal(state.players.find(p=>p.id==='b').hand,undefined);
@@ -170,4 +171,47 @@ test('seen bet updates effective blind for following actions', () => {
   action(room,a,{action:'seen',amount:20});
   assert.equal(room.game.lastBlind,10);
   assert.equal(room.game.pot,35);
+});
+
+test('dealt cards stay hidden to their owner until the player chooses look', () => {
+  const a=player('a','A'), b=player('b','B'); a.hand=hand([14,14,14]); b.hand=hand([2,3,5]);
+  a.seen=false;
+  const room={players:[a,b],dealerId:'a',game:{phase:'playing',pot:10,lastBlind:5,turn:0,reveal:false,players:[a,b],firstSeenId:null,forcedBlindId:null}};
+  assert.equal(publicState(room,'a').players.find(p=>p.id==='a').hand,undefined);
+  action(room,a,{action:'look'});
+  assert.deepEqual(publicState(room,'a').players.find(p=>p.id==='a').hand,a.hand);
+  assert.equal(room.game.turn,0,'looking at cards must not consume the turn');
+  assert.equal(publicState(room,'b').players.find(p=>p.id==='a').hand,undefined,'other players must not see the hand');
+});
+
+test('last two players can compare while both remain unseen using a blind challenge', () => {
+  const a=player('a','A'), b=player('b','B');
+  a.hand=hand([14,14,14]); b.hand=hand([13,13,13]);
+  a.seen=false; b.seen=false; a.wagered=true; b.wagered=true;
+  const room={players:[a,b],dealerId:'a',game:{phase:'playing',pot:20,lastBlind:10,reveal:false,players:[a,b],turn:0,firstSeenId:null,forcedBlindId:null,contributions:{a:5,b:5}}};
+  action(room,a,{action:'blindShow',target:'b'});
+  assert.equal(room.game.phase,'finished');
+  assert.equal(a.folded,false); assert.equal(b.folded,true);
+  assert.equal(room.game.pot,30,'blind challenge fee equals current effective blind');
+  assert.equal(room.dealerId,'a');
+});
+
+test('an unseen player can blind-challenge a seen opponent in the final two', () => {
+  const a=player('a','A'), b=player('b','B');
+  a.hand=hand([2,3,5]); b.hand=hand([14,14,14]);
+  a.seen=false; b.seen=true; a.wagered=true; b.wagered=true;
+  const room={players:[a,b],dealerId:'b',game:{phase:'playing',pot:20,lastBlind:5,reveal:false,players:[a,b],turn:0,firstSeenId:'b',forcedBlindId:null,contributions:{a:5,b:5}}};
+  action(room,a,{action:'blindShow',target:'b'});
+  assert.equal(room.game.phase,'finished');
+  assert.equal(a.folded,false,'235 beats all trips'); assert.equal(b.folded,true);
+  assert.equal(room.game.pot,25);
+});
+
+test('blind challenge is rejected unless exactly two active players remain', () => {
+  const a=player('a','A'), b=player('b','B'), c=player('c','C');
+  a.hand=hand([14,14,14]); b.hand=hand([13,13,13]); c.hand=hand([2,4,7]);
+  a.wagered=true; b.wagered=true;
+  const room={players:[a,b,c],dealerId:'a',game:{phase:'playing',pot:15,lastBlind:5,reveal:false,players:[a,b,c],turn:0,firstSeenId:null,forcedBlindId:null,contributions:{a:5,b:5,c:5}}};
+  action(room,a,{action:'blindShow',target:'b'});
+  assert.equal(room.game.phase,'playing'); assert.equal(room.game.pot,15); assert.equal(b.folded,false);
 });

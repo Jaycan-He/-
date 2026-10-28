@@ -64,7 +64,7 @@ function publicState(room, viewer) {
     dealer: room.dealerId || null, dealerName: room.players.find(p => p.id === room.dealerId)?.name || null,
     reveal: !!(g && g.reveal), turnDeadline: g && g.phase === 'playing' ? g.turnDeadline : null, players: room.players.filter(p => !p.disconnected).map(p => ({
       id: p.id, name: p.name, chips: p.chips, folded: !!p.folded, seen: !!p.seen,
-      hand: g && g.phase === 'finished' ? p.hand : (p.id === viewer && g ? p.hand : undefined)
+      hand: g && g.phase === 'finished' ? p.hand : (p.id === viewer && g && p.seen ? p.hand : undefined)
     }))
   };
 }
@@ -163,8 +163,29 @@ function action(room, p, m) {
     if (alive.length === 1) return finish(room, alive[0], `${p.name} 弃牌，${alive[0].name} 成为最后一位未弃牌玩家，赢得底池。`);
     advance(room); armTurnTimer(room); return broadcast(room, `${p.name} 弃牌。`);
   }
+  if (m.action === 'look') {
+    if (p.seen) return send(p, { type: 'error', message: '你已经看过自己的牌了。' });
+    p.seen = true;
+    if (!g.firstSeenId) g.firstSeenId = p.id;
+    return broadcast(room, `${p.name} 看了自己的牌。`);
+  }
+  if (m.action === 'blindShow') {
+    const aliveNow = activePlayers(room);
+    if (aliveNow.length !== 2) return send(p, { type: 'error', message: '只有场上最后两名玩家时，才能使用闷牌比牌。' });
+    if (p.seen) return send(p, { type: 'error', message: '你已经看牌，不能使用闷牌比牌。' });
+    const target = aliveNow.find(q => q.id !== p.id && q.wagered && q.id === m.target);
+    if (!target) return send(p, { type: 'error', message: '只能闷牌挑战最后一名仍在局内且已下注的对手。' });
+    if (g.forcedBlindId === p.id) return send(p, { type: 'error', message: '你必须先完成本局强制闷牌，不能直接比牌。' });
+    g.hadShowdown = true;
+    const amount = g.lastBlind;
+    p.chips -= amount; g.pot += amount; g.contributions[p.id] = (g.contributions[p.id] || 0) + amount;
+    const won = compareHands(p.hand, target.hand) > 0;
+    const loser = won ? target : p;
+    loser.folded = true;
+    return finish(room, won ? p : target, `${p.name} 支付 ${amount} 分闷牌比牌，${won ? '挑战成功' : '挑战失败'}，${(won ? p : target).name} 赢得本局。`);
+  }
   if (m.action === 'show') {
-    if (!p.seen) return send(p, { type: 'error', message: '看牌后才能发起比牌。' });
+    if (!p.seen) return send(p, { type: 'error', message: '看牌后才能发起普通比牌。' });
     if (g.firstSeenId === p.id) return send(p, { type: 'error', message: '第一位看牌的玩家只能下注或弃牌，不能比牌。' });
     const target = g.players.find(q => q.id === m.target && !q.folded && !q.disconnected && q.id !== p.id && q.wagered);
     if (!target) return send(p, { type: 'error', message: '只能选择之前已经上过牌且仍在局内的玩家比牌。' });
