@@ -1,0 +1,14 @@
+{
+  "name": "zhajinhua-multiplayer-prototype",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mobile-friendly multiplayer Zhajinhua demo",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
