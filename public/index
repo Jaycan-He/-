@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#073b2b"><title>炸金花多人对战</title>
+<style>
+:root{color-scheme:dark;--gold:#f3c96a;--panel:#092f25;--text:#f8f5e9}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(155deg,#071d19,#102d24);font-family:system-ui,-apple-system,sans-serif;color:var(--text)}main{max-width:760px;margin:auto;padding:15px 13px 28px}header,.row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.eyebrow{font-size:11px;letter-spacing:.15em;color:var(--gold)}h1{font-size:26px;margin:3px 0 12px}.panel{background:#0b3026;border:1px solid #ffffff20;border-radius:14px;padding:12px;margin-bottom:10px}.muted{color:#b9cdc3;font-size:13px}.goldtxt{color:var(--gold)}input,select{width:100%;min-height:44px;background:#061f19;color:white;border:1px solid #49695b;border-radius:9px;padding:10px;font-size:16px;margin:5px 0 10px}button{border:0;border-radius:10px;padding:11px 12px;min-height:44px;font-size:14px;font-weight:800;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}.gold{background:var(--gold);color:#38240a}.light{background:#f4f0e6;color:#183b2b}.danger{background:#a93636;color:white}.secondary{background:#244b3c;color:white}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{text-align:center;background:#0b3026;border:1px solid #ffffff20;border-radius:12px;padding:10px}.stat small{display:block;color:#b9cdc3;font-size:12px}.stat b{font-size:19px}.felt{border:5px solid #76502f;box-shadow:inset 0 0 0 2px #c59c57;border-radius:24px;padding:10px;background:radial-gradient(ellipse at center,#168053,#075337 68%,#063b2c);margin:10px 0}.seat{background:#062f25c9;border:1px solid #ffffff35;border-radius:13px;padding:9px;text-align:center;margin-bottom:8px}.seat:last-child{margin-bottom:0}.cards{display:flex;justify-content:center;gap:6px;min-height:83px;margin:8px 0}.card{background:#fffdf6;color:#222;border-radius:7px;width:clamp(43px,12vw,61px);height:78px;padding:5px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;font-weight:850;box-shadow:0 3px 5px #0005;line-height:1}.suit{font-size:23px;align-self:center}.red{color:#d52e3d}.back{background:repeating-linear-gradient(45deg,#244b81,#244b81 5px,#f0e6d0 5px,#f0e6d0 7px);border:3px solid #fff5e5;color:transparent}.log{background:#092f25;border:1px solid #ffffff18;border-radius:12px;padding:11px;font-size:13px;line-height:1.6;white-space:pre-wrap;min-height:44px}.hidden{display:none!important}.badge{font-size:11px;background:#ffffff16;border-radius:99px;padding:3px 7px}.playerline{display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left;padding:6px 0;border-bottom:1px solid #ffffff15}.playerline:last-child{border:0}.help{font-size:12px;line-height:1.6;color:#b9cdc3}@media(min-width:560px){main{padding:24px}.actions{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style></head>
+<body><main>
+<header><div><div class="eyebrow">MOBILE POKER · MULTIPLAYER</div><h1>♠ 炸金花</h1></div><div class="muted">虚拟积分 · 不涉及真钱</div></header>
+<section id="lobby" class="panel">
+<h2 style="margin:0 0 8px">进入牌桌</h2><label class="muted" for="nickname">你的昵称</label><input id="nickname" maxlength="16" value="玩家" autocomplete="nickname">
+<div class="actions"><button id="create" class="gold">创建多人房间</button><button id="local" class="light">单机 AI 试玩</button></div>
+<div style="margin-top:12px"><label class="muted" for="roomcode">房间号</label><input id="roomcode" maxlength="8" placeholder="输入好友的房间号"><button id="join" class="secondary" style="width:100%">加入房间</button></div>
+<p class="help">多人模式需要启动下方项目中的服务器。把服务器部署到公网后，好友即可通过同一网址和房间号加入。</p>
+</section>
+<section id="game" class="hidden">
+<div class="stats"><div class="stat"><small>底池</small><b id="pot">0</b></div><div class="stat"><small>本轮最低闷注</small><b id="blind">5</b></div><div class="stat"><small>当前行动 / 剩余秒数</small><b id="turn">—</b></div></div>
+<div class="panel"><div class="row"><b>房间 <span id="roomlabel" class="goldtxt">单机</span></b><span id="connection" class="badge">本地模式</span></div><div class="muted" style="margin:7px 0">庄家：<b id="dealerlabel" class="goldtxt">等待开局</b> · 按座位顺序逆时针行动</div><div id="players"></div><div class="row" style="margin-top:8px"><button id="ready" class="gold">房主开始新局</button><button id="terminate" class="danger" disabled>房主终止对局</button><button id="leave" class="secondary">返回大厅</button></div></div>
+<div class="felt"><div id="opponents"></div><div class="seat"><b>👤 你的手牌</b><div id="mycards" class="cards"></div><div id="myhand" class="badge">等待发牌</div></div></div>
+<section class="panel"><b>你的操作</b><label class="muted" for="target">比牌对象（只能选之前上过牌的玩家）</label><select id="target"><option value="">暂无可比牌对象</option></select><div class="actions" style="margin-top:9px">
+<button id="blind5" class="light">闷牌 5</button><button id="blind10" class="light">闷牌 10</button><button id="blind15" class="light">闷牌 15</button>
+<button id="seen10" class="gold">看牌下注 10</button><button id="seen20" class="gold">看牌下注 20</button><button id="seen30" class="gold">看牌下注 30</button>
+<button id="show" class="secondary">比牌（支付当前看牌金额）</button><button id="fold" class="danger">弃牌</button>
+</div><p class="help">闷牌只能选择 5/10/15，且不能低于上一个有效闷注；看牌下注为闷注对应的 2 倍。第一位看牌的玩家只能下注或弃牌；之后看牌的玩家可与之前已上牌且仍在局内的玩家比牌。比牌费用为当前闷注的两倍，输家弃牌。若按钮暂不可用，请等待轮到你。</p></section>
+<div id="status" class="log" aria-live="polite">请创建房间、加入房间，或开始单机试玩。</div>
+</section>
+<p class="help">规则约定：顺金 ＞ 特殊牌 235 ＞ 豹子 ＞ 金花 ＞ 顺子 ＞ 对子 ＞ 单张；AAA 为最大普通豹子，235 可击败所有豹子。每局由庄家开始按座位顺序逆时针轮流操作，上一局赢家成为下一局庄家。闷牌拿到豹子或顺金并获胜时，获得每位其他玩家额外 30 分；闷牌拿到 235 且令所有其他玩家弃牌时，也获得每位其他玩家额外 30 分。当前原型把 235 作为特殊牌型处理。</p>
+</main>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+setInterval(()=>{if(state?.phase==='playing'&&state.turnDeadline){const sec=Math.max(0,Math.ceil((state.turnDeadline-Date.now())/1000));$('turn').textContent=(state.currentName||'等待')+' · '+sec+'秒';}},250);
+let mode='local',ws=null,room='',myId='',state=null,localState=null;
+const suits=['♠','♥','♣','♦'],rn=r=>({11:'J',12:'Q',13:'K',14:'A'}[r]||String(r));
+function evaluate(h){
+ const rs=h.map(c=>c.r).sort((a,b)=>b-a),flush=h.every(c=>c.s===h[0].s),counts={};rs.forEach(r=>counts[r]=(counts[r]||0)+1);
+ const g=Object.entries(counts).map(([r,n])=>({r:+r,n})).sort((a,b)=>b.n-a.n||b.r-a.r);
+ const is235=rs.join(',')==='5,3,2',unique=[...new Set(rs)],straight=unique.length===3&&(rs[0]-rs[2]===2||(rs[0]===14&&rs[1]===3&&rs[2]===2));
+ const seq=rs[0]===14&&rs[1]===3&&rs[2]===2?[3,2,1]:rs;
+ if(straight&&flush)return {cat:8,vec:seq,label:'顺金'};
+ if(is235)return {cat:7,vec:[5,3,2],label:'特殊牌 235'};
+ if(g[0].n===3)return {cat:6,vec:[g[0].r],label:'豹子'};
+ if(flush)return {cat:4,vec:rs,label:'金花'};
+ if(straight)return {cat:3,vec:seq,label:'顺子'};
+ if(g[0].n===2)return {cat:2,vec:[g[0].r,...rs.filter(r=>r!==g[0].r)],label:'对子'};
+ return {cat:1,vec:rs,label:'单张'};
+}
+function cmp(a,b){let x=evaluate(a),y=evaluate(b);if(x.cat!==y.cat)return x.cat-y.cat;for(let i=0;i<Math.max(x.vec.length,y.vec.length);i++)if((x.vec[i]||0)!==(y.vec[i]||0))return (x.vec[i]||0)-(y.vec[i]||0);return 0}
+function card(c,hide=false){if(hide)return '<div class="card back">?</div>';return `<div class="card ${(c.s==='♥'||c.s==='♦')?'red':''}"><span>${rn(c.r)}</span><span class="suit">${c.s}</span><span style="font-size:10px">${rn(c.r)}${c.s}</span></div>`}
+function log(t){$('status').textContent=t}
+function showGame(){ $('lobby').classList.add('hidden');$('game').classList.remove('hidden');}
+function showLobby(){ $('game').classList.add('hidden');$('lobby').classList.remove('hidden');if(ws){ws.close();ws=null}mode='local';}
+function render(s){
+ state=s;showGame();$('roomlabel').textContent=room||'单机';$('connection').textContent=mode==='online'?'已连接服务器':'本地 AI 模式';
+ $('pot').textContent=s.pot;$('blind').textContent=s.lastBlind||5;$('turn').textContent=s.currentName||'等待开始';$('dealerlabel').textContent=s.dealerName||'等待开局';
+ $('players').innerHTML=s.players.map(p=>`<div class="playerline"><span>${p.name}${p.id===myId?'（你）':''} ${p.id===s.hostId?'· 房主':''} ${p.id===s.dealer?'· 庄家':''} ${p.folded?'· 已弃牌':''} ${p.seen?'· 已看牌':''}</span><span>${p.chips} 分 ${p.id===s.current?'· 行动中':''}</span></div>`).join('');
+ $('ready').disabled=mode==='online'?!s.isHost:(s.phase==='playing'); $('terminate').disabled=mode!=='online'||!s.isHost||s.phase==='playing';
+ $('opponents').innerHTML=s.players.filter(p=>p.id!==myId).map(p=>`<div class="seat"><div class="seat-head">${p.name} <span class="badge">${p.folded?'已弃牌':p.seen?'已看牌':'闷牌中'}</span></div><div class="cards">${(p.hand&&s.reveal? p.hand.map(c=>card(c)).join(''):'<div class="card back">?</div><div class="card back">?</div><div class="card back">?</div>')}</div><div class="muted">${p.chips} 分</div></div>`).join('');
+ const me=s.players.find(p=>p.id===myId);$('mycards').innerHTML=me&&me.hand?me.hand.map(c=>card(c)).join(''):'<span class="muted">等待发牌</span>';$('myhand').textContent=me&&me.hand?'牌型：'+evaluate(me.hand).label:'等待发牌';
+ const can=s.phase==='playing'&&s.current===myId&&!me?.folded;
+ const target=$('target'); const oldTarget=target.value; const choices=(s.eligibleTargets||[]); target.innerHTML=choices.length?choices.map(p=>`<option value="${p.id}">${p.name}</option>`).join(''):'<option value="">暂无可比牌对象</option>'; if(choices.some(p=>p.id===oldTarget))target.value=oldTarget;
+ const firstLooker=!!(s.firstSeenId&&s.firstSeenId===myId);
+ for(const id of ['blind5','blind10','blind15','seen10','seen20','seen30','fold'])$(id).disabled=!can;
+ $('show').disabled=!can||firstLooker||choices.length===0||!me?.seen;
+}
+function send(action,amount=0,target=''){if(mode==='online'){if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'action',action,amount,target}));}else localAction(action,amount,target)}
+function connect(create,code=''){
+ mode='online';room=code;myId='';const proto=location.protocol==='https:'?'wss:':'ws:';const url=(location.protocol==='file:'?'ws://localhost:8080':proto+'//'+location.host);
+ try{ws=new WebSocket(url)}catch(e){log('无法连接服务器。请按 README 启动服务端，或先用单机 AI 试玩。');mode='local';return}
+ ws.onopen=()=>ws.send(JSON.stringify({type:create?'create':'join',name:$('nickname').value.trim()||'玩家',room:code}));
+ ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.type==='welcome'){myId=m.id;room=m.room;$('roomcode').value=room;log(m.message||'已进入房间。把房间号分享给好友。')}else if(m.type==='state'){render(m.state);if(m.message)log(m.message)}else if(m.type==='error'){log(m.message)}};
+ ws.onerror=()=>log('服务器连接失败。多人模式需先启动 Node.js 服务器；可先点“单机 AI 试玩”。');
+ ws.onclose=()=>{if(mode==='online')log('连接已断开。请检查服务器是否仍在运行。')};
+}
+function localStart(){
+ mode='local';room='';myId='p0';const d=[];for(const s of suits)for(let r=2;r<=14;r++)d.push({s,r});for(let i=d.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}
+ const ps=[{id:'p0',name:$('nickname').value||'你',chips:300,hand:d.splice(0,3),folded:false,seen:true,blind:false},{id:'ai1',name:'电脑 A',chips:300,hand:d.splice(0,3),folded:false,seen:false,blind:true},{id:'ai2',name:'电脑 B',chips:300,hand:d.splice(0,3),folded:false,seen:false,blind:true}];
+ ps.forEach(p=>p.chips-=5);localState={players:ps,pot:15,lastBlind:5,current:'p0',phase:'playing',reveal:false,round:1,dealer:'p0',dealerName:ps[0].name};localRender();
+}
+function localRender(msg='单机局已开始。所有玩家先支付 5 分底注。'){const s=localState;render({...s,currentName:(s.players.find(p=>p.id===s.current)||{}).name||'已结束',players:s.players.map(p=>({...p,hand:p.id==='p0'||s.reveal?p.hand:undefined})),reveal:s.reveal});log(msg)}
+function localAction(action,amount,target){
+ const s=localState,me=s.players[0];if(!s||s.phase!=='playing'||s.current!=='p0')return;
+ if(action==='fold'){me.folded=true;return localFinish('你弃牌了，本局结束。')}
+ if(action==='show'){s.reveal=true;const opponents=s.players.filter(p=>p.id!=='p0'&&!p.folded);if(!opponents.length)return localFinish('没有可比牌的对手。');const opp=opponents[Math.floor(Math.random()*opponents.length)];const result=cmp(me.hand,opp.hand);return localFinish(result>=0?'你开牌胜出，赢得底池 '+s.pot+' 分。':opp.name+' 开牌胜出，你输掉本局。',result>=0?me:opp)}
+ const blind=action==='blind';const cost=amount;if(blind&&amount<s.lastBlind){log('闷牌金额不能低于上一位玩家的闷注。');return}if(!blind&&amount< s.lastBlind*2){log('看牌下注必须至少为当前闷注的两倍。');return}
+ me.chips-=cost;s.pot+=cost;if(blind)s.lastBlind=amount;me.seen=!blind;
+ for(const ai of s.players.slice(1).filter(p=>!p.folded)){
+   const strength=cmp(ai.hand,me.hand),ev=evaluate(ai.hand);
+   const foldChance=ev.cat===1?.45:ev.cat===2?.2:.06;
+   if(Math.random()<foldChance){ai.folded=true;continue}
+   const blindAI=!ai.seen&&Math.random()<.55;let pay=blindAI?Math.max(s.lastBlind,5):Math.max(s.lastBlind*2,10);pay=Math.min(pay,ai.chips);ai.chips-=pay;s.pot+=pay;
+   if(!blindAI)ai.seen=true;
+ }
+ const alive=s.players.filter(p=>!p.folded);if(alive.length===1)return localFinish(alive[0]===me?'所有电脑玩家弃牌，你赢得底池！':'电脑玩家赢得底池。',alive[0]);
+ // After each betting action, AI may decide to challenge rather than auto-opening every hand.
+ const challenger=alive.find(p=>p.id!=='p0'&&Math.random()<.18);
+ if(challenger){s.reveal=true;const winner=cmp(me.hand,challenger.hand)>=0?me:challenger;return localFinish(challenger.name+' 决定开牌挑战。'+(winner===me?'你赢了！':'对手赢了！'),winner)}
+ localRender('电脑玩家已跟注，暂未决定开牌。你可以继续下注、弃牌，或主动开牌挑战。');return;
+}
+function localFinish(msg,winner){const s=localState;s.phase='finished';s.current='';s.reveal=true;if(winner){winner.chips+=s.pot;}localRender(msg);['blind5','blind10','blind15','seen10','seen20','seen30','show','fold'].forEach(id=>$(id).disabled=true);$('ready').textContent='再来一局'}
+$('create').addEventListener('click',()=>connect(true));
+$('join').addEventListener('click',()=>{const c=$('roomcode').value.trim();if(!c){log('请输入房间号。');return}connect(false,c)});
+$('local').addEventListener('click',localStart);
+$('ready').addEventListener('click',()=>{if(mode==='online'){if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'ready'}))}else localStart()});
+$('terminate').addEventListener('click',()=>{if(mode==='online'&&state?.isHost&&state.phase!=='playing'&&confirm('确定关闭当前房间？当前牌局必须已经结束。')){if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'terminate'}))}});
+$('leave').addEventListener('click',showLobby);
+$('blind5').addEventListener('click',()=>send('blind',5));$('blind10').addEventListener('click',()=>send('blind',10));$('blind15').addEventListener('click',()=>send('blind',15));
+$('seen10').addEventListener('click',()=>send('seen',10));$('seen20').addEventListener('click',()=>send('seen',20));$('seen30').addEventListener('click',()=>send('seen',30));
+$('show').addEventListener('click',()=>{const target=$('target').value;if(!target){log('请选择一位符合条件的比牌对象。');return}send('show',0,target)});$('fold').addEventListener('click',()=>send('fold'));
+})();
+</script></body></html>
