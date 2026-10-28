@@ -16,7 +16,7 @@
 #opponents .seat.mine{border:2px solid #f3c96a;box-shadow:0 0 0 2px #5d431c,0 8px 20px #0009}
 #opponents .seat.active{outline:3px solid #68e7a0;outline-offset:2px}
 .seat-head{display:flex;justify-content:center;align-items:center;gap:5px;flex-wrap:wrap;font-weight:800;font-size:13px;line-height:1.3;overflow-wrap:anywhere}
-.seat .cards{gap:3px;min-height:0;margin:7px 0 5px}
+.seat-action{position:absolute;left:50%;top:-19px;transform:translateX(-50%);z-index:5;display:block;width:max-content;max-width:min(190px,78vw);padding:5px 9px;border:1px solid #ffe7a2;border-radius:12px;background:#fff1bd;color:#17372c;font-size:11px;font-weight:850;line-height:1.25;overflow-wrap:anywhere;white-space:normal;box-shadow:0 4px 10px #0007;pointer-events:none}.seat-action:after{content:"";position:absolute;left:50%;bottom:-5px;width:8px;height:8px;background:#fff1bd;border-right:1px solid #ffe7a2;border-bottom:1px solid #ffe7a2;transform:translateX(-50%) rotate(45deg)}.seat .cards{gap:3px;min-height:0;margin:7px 0 5px}
 .seat .card{width:clamp(25px,3.3vw,39px);height:clamp(39px,5vw,54px);padding:3px;border-radius:5px;font-size:12px}
 .seat .card .suit{font-size:15px}
 .seat .card.back{border-width:2px}
@@ -90,7 +90,7 @@ function render(s){
    const x=50+43*Math.cos(rad),y=50+38*Math.sin(rad);
    const isMe=p.id===myId,showCards=!!(p.hand&&(s.reveal||s.phase==='finished'||(isMe&&p.seen)));
    const faces=showCards?p.hand.map(c=>card(c)).join(''):'<div class="card back">?</div><div class="card back">?</div><div class="card back">?</div>';
-   return `<div class="seat ${isMe?'mine':''} ${p.id===s.current?'active':''}" style="--seat-x:${x}%;--seat-y:${y}%"><div class="seat-head">${isMe?'你':p.name} <span class="badge">${p.folded?'已弃牌':p.seen?'已看牌':'闷牌中'}</span></div><div class="cards" ${isMe?'id="mycards"':''}>${faces}</div>${isMe?'<div id="myhand" class="badge">尚未看牌</div>':''}<div class="muted">${p.chips} 分 ${p.id===s.dealer?'· 庄家':''}</div></div>`;
+   return `<div class="seat ${isMe?'mine':''} ${p.id===s.current?'active':''}" style="--seat-x:${x}%;--seat-y:${y}%"><div class="seat-head">${isMe?'你':p.name} <span class="badge">${p.folded?'已弃牌':p.seen?'已看牌':'闷牌中'}</span></div><div class="cards" ${isMe?'id="mycards"':''}>${faces}</div>${isMe?'<div id="myhand" class="badge">尚未看牌</div>':''}<div class="muted">${p.chips} 分 ${p.id===s.dealer?'· 庄家':''}</div>${p.lastAction?`<div class="seat-action" role="status">${p.lastAction}</div>`:''}</div>`;
  }).join('');
  $('mycards').innerHTML=me&&me.hand&&(me.seen||s.phase==='finished')?me.hand.map(c=>card(c)).join(''):(me&&me.hand?'<div class="card back">?</div><div class="card back">?</div><div class="card back">?</div>':'<span class="muted">等待发牌</span>');$('myhand').textContent=me&&me.hand&&(me.seen||s.phase==='finished')?'牌型：'+evaluate(me.hand).label:(me&&me.hand?'尚未看牌':'等待发牌');
  const can=s.phase==='playing'&&s.current===myId&&!me?.folded;
@@ -99,7 +99,7 @@ function render(s){
  for(const id of ['blind5','blind10','blind15','seen10','seen20','seen30','fold'])$(id).disabled=!can;
  $('look').disabled=s.phase!=='playing'||!me||!!me.seen;
  $('show').disabled=!can||firstLooker||choices.length===0||!me?.seen;
- $('blindShow').disabled=!can||!!me?.seen||s.players.filter(p=>!p.folded).length!==2||choices.length===0;
+ $('blindShow').disabled=!can||!!me?.seen||s.players.filter(p=>!p.folded).length!==2||choices.length!==1;
 }
 function send(action,amount=0,target=''){if(mode==='online'){if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'action',action,amount,target}));}else localAction(action,amount,target)}
 function connect(create,code=''){
